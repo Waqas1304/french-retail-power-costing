@@ -1,0 +1,9 @@
+# raw downloads are big: run_all.py re-downloads them. The cleaned tables in data/processed/ ARE committed
+data/raw/
+__pycache__/
+*.pyc
+.pytest_cache/
+.ipynb_checkpoints/
+.venv/
+venv/
+.env

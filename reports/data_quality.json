@@ -1,0 +1,24 @@
+{
+  "prices": {
+    "raw_points": 94299,
+    "duplicates_removed": 0,
+    "hours": 87672,
+    "missing_hours_before_fill": 0,
+    "missing_hours_after_fill": 0,
+    "negative_price_hours": 1226,
+    "hours_above_500": 740,
+    "min": -134.94,
+    "max": 2987.78,
+    "first": "2015-12-31 23:00:00+00:00",
+    "last": "2025-12-31 22:00:00+00:00"
+  },
+  "enedis": {
+    "avg_meters": 32932376.535746157
+  },
+  "analysis_window": {
+    "hours": 50425,
+    "first": "2020-04-01 00:00:00",
+    "last": "2025-12-31 23:00:00",
+    "avg_household_mwh_per_year": 4.179806561551228
+  }
+}

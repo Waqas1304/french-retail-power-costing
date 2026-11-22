@@ -1,0 +1,80 @@
+# ---------------------------------------------------------------------------
+# French residential electricity: cost-to-serve & risk-premium model
+# All assumptions live here so they are visible and easy to challenge.
+# ---------------------------------------------------------------------------
+
+data_dir: data            # raw/, interim/, processed/ are created inside
+reports_dir: reports
+
+period:
+  start: "2020-04-01"     # Enedis half-hourly residential aggregates start here
+  end: "2025-12-31"       # last full year used for the historical analysis
+  price_history_start: "2016-01-01"   # longer price history, used for the forward-error volatility
+
+sources:
+  prices:
+    provider: energy_charts           # "energy_charts" (no key) or "entsoe" (needs ENTSOE_API_KEY env var)
+    bidding_zone: FR
+    sleep_seconds: 35                 # Energy-Charts allows ~2 requests/minute
+  enedis:
+    base_url: "https://opendata.enedis.fr/data-fair/api/v1/datasets/conso-inf36/lines"
+    page_size: 10000
+    # Residential profiles in the dataset (exact labels from the API)
+    profiles: ["RES1 (+ RES1WE)", "RES11 (+ RES11WE)", "RES2 (+ RES5)", "RES2WE", "RES3", "RES4"]
+    power_range: "P0: Total <= 36 kVA"   # the 'all power ranges' total row -> avoids double counting
+  temperature:
+    provider: open_meteo
+    start: "1991-01-01"               # 30+ years of weather for the 'weather-year' simulation
+    # Big metro areas, weighted by approximate population (millions) -> a rough 'France' temperature
+    cities:
+      Paris:      {lat: 48.857, lon: 2.352, weight: 13.0}
+      Lyon:       {lat: 45.764, lon: 4.836, weight: 2.3}
+      Marseille:  {lat: 43.296, lon: 5.370, weight: 1.9}
+      Toulouse:   {lat: 43.605, lon: 1.444, weight: 1.5}
+      Lille:      {lat: 50.629, lon: 3.057, weight: 1.5}
+      Bordeaux:   {lat: 44.838, lon: -0.579, weight: 1.4}
+      Nantes:     {lat: 47.218, lon: -1.554, weight: 1.0}
+      Strasbourg: {lat: 48.573, lon: 7.752, weight: 0.8}
+
+model:
+  hdd_base_c: 15.0          # heating degree-day threshold (°C)
+  cdd_base_c: 22.0          # cooling degree-day threshold (°C)
+  forward_proxy: q4_prev    # "q4_prev" = average spot price of Oct-Dec of the previous year
+                            # "prev_year" = average spot price of the previous year
+  # If you find real calendar baseload forward prices (e.g. in CRE tariff decisions),
+  # put them here (€/MWh) and they override the proxy for that delivery year.
+  forward_override: {}      # example: {2024: 160.0}
+  hedge_ratio: 1.0          # share of expected average load bought as a flat baseload block
+  n_simulations: 2000
+  risk_quantile: 0.95       # risk premium covers this share of simulated outcomes
+  min_level_vol: 0.15       # floor on annual price-level volatility (log scale)
+  random_seed: 42
+
+capacity:
+  # €/MW of capacity obligation per delivery year. Only values with a public source are filled.
+  # Leave null if unknown -> capacity cost is reported as "n/a" for that year.
+  price_eur_per_mw:
+    2021: null
+    2022: null
+    2023: null
+    2024: 27090     # average of auctions for delivery 2024 (Connaissance des Énergies, Dec 2024)
+    2025: 14650     # average of auctions for delivery 2025 (same source)
+    2027: 28183     # new centralised mechanism, auction of 6 Jul 2026 for Nov 2026-Mar 2027 (EDF)
+  # Simplified obligation: average load on winter weekdays (Dec-Feb) during peak hours (local time)
+  peak_months: [12, 1, 2]
+  peak_hours: [7, 8, 9, 10, 11, 12, 13, 14, 18, 19]
+
+backtest:
+  years: [2021, 2022, 2023, 2024, 2025]
+
+scenarios:
+  target_year: 2027
+  # Forward level = multiplier x average spot price of the last 12 months of data.
+  # These are illustrative what-ifs, NOT forecasts.
+  cases:
+    low:     {level_multiplier: 0.70, level_vol: 0.20}
+    central: {level_multiplier: 1.00, level_vol: 0.30}
+    high:    {level_multiplier: 1.60, level_vol: 0.50}
+
+portfolio:
+  n_customers: 100000       # only used to show totals in € and MW; €/MWh results don't depend on it
